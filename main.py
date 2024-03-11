@@ -55,6 +55,7 @@ def lessons_remaining(email, instrument, lesson_length):
         lessons_remain += certificate["remainingMinutes"]
     return lessons_remain // int(lesson_length)
 
+
 # Function to create a direct messaging channel on Discord between bot and user
 def create_dm_channel(user_id):
     data = {"recipient_id": user_id}
@@ -66,6 +67,7 @@ def create_dm_channel(user_id):
 
     channel_id = r.json()["id"]
     return channel_id
+
 
 # Check for valid payment certificates on the system
 def check_certificates(email, product_id, lesson_length):
@@ -92,6 +94,7 @@ def check_certificates(email, product_id, lesson_length):
                         valid_certificates.append(certificate)
 
     return valid_certificates[::-1]
+
 
 # Check out unpaid lessons using valid certificates
 def check_past_codes(email, instrument, product_id, lesson_length):
@@ -132,6 +135,7 @@ def check_past_codes(email, instrument, product_id, lesson_length):
                 certificate["remainingMinutes"] -= int(lesson_length)
                 counter += 1
 
+
 # Check to see if email is present on the system
 def search_email(email):
     parameters = {
@@ -153,6 +157,7 @@ def search_email(email):
             break
 
     return email_valid
+
 
 # List unpaid lessons for student
 def check_unpaid_lessons(email):
@@ -177,6 +182,7 @@ def check_unpaid_lessons(email):
 
 
 bot = Client(token=TOKEN)
+
 
 # Bot sends ready status
 @bot.event
@@ -212,7 +218,7 @@ async def send_modal(ctx: CommandContext):
             TextInput(
                 style=TextStyleType.SHORT,
                 custom_id="modal_payment",
-                label="Payment method - 'cash' or 'card'?",
+                label="Payment method - 'cash'/'card'/'BACS'?",
                 max_length=4
             )
         ]
@@ -249,6 +255,7 @@ async def send_modal1(ctx: CommandContext):
     )
     await ctx.popup(modal)
 
+
 # Create modal to devise invoice for staff member
 @bot.command(name="invoice",
              description="Creates an invoice for the staff member",
@@ -273,6 +280,7 @@ async def send_modal2(ctx: CommandContext):
         ]
     )
     await ctx.popup(modal)
+
 
 # Use inputted details to add a new block of lessons
 @bot.modal("add_block")
@@ -315,11 +323,12 @@ async def modal(ctx, modal_email: str, modal_instrument: str, modal_lesson_lengt
         lessons_remain = lessons_remaining(modal_email.lower(), modal_instrument.lower(), modal_lesson_length)
         if response.ok:
             await ctx.send(
-                f"Block created for {modal_email}: 5x{modal_lesson_length}min {modal_instrument.lower()}. {modal_payment.title()} payment. {lessons_remain} lessons remaining.")
+                f"Block created for {modal_email}: 5x{modal_lesson_length}min {modal_instrument.lower()}. {modal_payment.upper()} payment. {lessons_remain} lessons remaining.")
         else:
             await ctx.send("Block could not be created.")
     else:
         await ctx.send("There has been a problem. Please check the details and try again.")
+
 
 # Use inputted details to calculate the lessons remaining for a given student
 @bot.modal("lessons_remain")
@@ -345,6 +354,7 @@ async def modal1(ctx, modal_email1: str, modal_instrument1: str, modal_lesson_le
                 await ctx.send(f"{modal_email1} has no remaining lessons and is due to pay now.")
     else:
         await ctx.send("There has been a problem. Please check the details and try again.", ephemeral=True)
+
 
 # Work out lessons worked for staff member, matching it with their discord account. Calculate total amount owed.
 @bot.modal("invoice")
@@ -406,7 +416,8 @@ async def modal2(ctx: CommandContext, date_from: str, date_to: str):
                         with open("exempt_students.txt", mode="r") as file:
                             exempt_students = [line[:-1] for line in file.readlines()]
                         if not appointment["email"] in exempt_students:
-                            unpaid_lessons = [unpaid_lesson["date"] for unpaid_lesson in check_unpaid_lessons(appointment["email"])][::-1]
+                            unpaid_lessons = [unpaid_lesson["date"] for unpaid_lesson in
+                                              check_unpaid_lessons(appointment["email"])][::-1]
                             students_to_pay.append(
                                 f"{appointment['date']}\n*{appointment['first name']} {appointment['surname']}*, email: {appointment['email']}, unpaid lessons({len(unpaid_lessons)}): {unpaid_lessons}")
                             appointment["paid"] = "\U0000274C"
@@ -425,6 +436,7 @@ async def modal2(ctx: CommandContext, date_from: str, date_to: str):
                     label="Send"
                 )
                 await ctx.send(invoice, ephemeral=True, components=button)
+
 
 # Send invoice to invoice guild
 @bot.component("send_invoice")
@@ -456,6 +468,7 @@ async def send_invoice(ctx: ComponentContext):
             requests.post(url=discord_url, json=parameters, headers=header)
 
     await ctx.send("Invoice sent!", ephemeral=True)
+
 
 # Initialise bot
 bot.start()
