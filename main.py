@@ -282,6 +282,61 @@ async def send_modal2(ctx: CommandContext):
     await ctx.popup(modal)
 
 
+@bot.command(name="mass_delete",
+             description="Deletes appointments for staff member",
+             scope=GUILD_ID)
+async def send_modal3(ctx: CommandContext):
+    modal = Modal(
+        custom_id="mass_delete",
+        title="Delete appointments",
+        components=[
+            TextInput(
+                style=TextStyleType.SHORT,
+                custom_id="date_from",
+                label="Date from (dd/mm/yy)",
+                max_length=8
+            ),
+            TextInput(
+                style=TextStyleType.SHORT,
+                custom_id="date_to",
+                label="Date to (dd/mm/yy)",
+                max_length=8
+            ),
+        ]
+    )
+    await ctx.popup(modal)
+
+
+@bot.command(name="single_delete",
+             description="Deletes all appointments for client",
+             scope=GUILD_ID)
+async def send_modal4(ctx: CommandContext):
+    modal = Modal(
+        custom_id="single_delete",
+        title="Delete appointments",
+        components=[
+            TextInput(
+                style=TextStyleType.SHORT,
+                custom_id="modal_email2",
+                label="Email address"
+            ),
+            TextInput(
+                style=TextStyleType.SHORT,
+                custom_id="date_from",
+                label="Date from (dd/mm/yy)",
+                max_length=8
+            ),
+            TextInput(
+                style=TextStyleType.SHORT,
+                custom_id="date_to",
+                label="Date to (dd/mm/yy)",
+                max_length=8
+            ),
+        ]
+    )
+    await ctx.popup(modal)
+
+
 # Use inputted details to add a new block of lessons
 @bot.modal("add_block")
 async def modal(ctx, modal_email: str, modal_instrument: str, modal_lesson_length: str, modal_payment: str):
@@ -436,6 +491,85 @@ async def modal2(ctx: CommandContext, date_from: str, date_to: str):
                     label="Send"
                 )
                 await ctx.send(invoice, ephemeral=True, components=button)
+
+
+# Delete all lessons for given time period for user (staff member).
+@bot.modal("mass_delete")
+async def modal3(ctx: CommandContext, date_from: str, date_to: str):
+    await ctx.defer(ephemeral=True)
+    await asyncio.sleep(2)
+    discord_user = ctx.author.user.id._snowflake
+    appointments = []
+    date_from = datetime.strptime(date_from, "%d/%m/%y").strftime("%B %d, %Y")
+    date_to = datetime.strptime(date_to, "%d/%m/%y").strftime("%B %d, %Y")
+    with open("staff_details.json", mode="r") as file:
+        staff_details = json.load(file)
+        for staff in staff_details:
+            if staff["discord"] == discord_user:
+                parameters = {
+                    "minDate": date_from,
+                    "maxDate": date_to,
+                    "calendarID": staff["calendar"]
+                }
+
+                data = requests.get(url="https://acuityscheduling.com/api/v1/appointments",
+                                    auth=(USER_NAME, API_KEY),
+                                    params=parameters,
+                                    headers=headers)
+
+                results = data.json()
+                for result in results:
+                    appointments.append(result["id"])
+
+                params = {
+                    "noEmail": "true",
+                    "admin": "true"
+                }
+
+                for appointment in appointments:
+                    requests.put(url=f"{API_URL}appointments/{appointment}/cancel", auth=(USER_NAME, API_KEY), params=params, headers=headers)
+
+                await ctx.send("Lessons deleted.")
+
+
+# Delete all lessons for given email and time period for user (staff member).
+@bot.modal("single_delete")
+async def modal4(ctx: CommandContext, modal_email2: str, date_from: str, date_to: str):
+    await ctx.defer(ephemeral=True)
+    await asyncio.sleep(2)
+    discord_user = ctx.author.user.id._snowflake
+    appointments = []
+    date_from = datetime.strptime(date_from, "%d/%m/%y").strftime("%B %d, %Y")
+    date_to = datetime.strptime(date_to, "%d/%m/%y").strftime("%B %d, %Y")
+    with open("staff_details.json", mode="r") as file:
+        staff_details = json.load(file)
+        for staff in staff_details:
+            if staff["discord"] == discord_user:
+                parameters = {
+                    "email": modal_email2,
+                    "minDate": date_from,
+                    "maxDate": date_to,
+                    "calendarID": staff["calendar"]
+                }
+
+                data = requests.get(url="https://acuityscheduling.com/api/v1/appointments",
+                                    auth=(USER_NAME, API_KEY),
+                                    params=parameters,
+                                    headers=headers)
+
+                results = data.json()
+                for result in results:
+                    appointments.append(result["id"])
+
+                params = {
+                    "noEmail": "true",
+                    "admin": "true"
+                }
+
+                for appointment in appointments:
+                    requests.put(url=f"{API_URL}appointments/{appointment}/cancel", auth=(USER_NAME, API_KEY), params=params, headers=headers)
+
+                await ctx.send("Lessons deleted.")
 
 
 # Send invoice to invoice guild
